@@ -8,6 +8,9 @@
 ## requirements
 > pip install -r requirements.txt
 
+## dataset
+* [video_cars.mp4](https://drive.google.com/file/d/119pDDZhH64BOW-6NPdEfDu3s_8-OA_4A/view?usp=sharing)
+
 ## References
 * [Image Embedding models](https://developers.google.com/mediapipe/solutions/vision/image_embedder/index#models)
 * [Image Embedding Mediapipe](https://developers.google.com/mediapipe/solutions/vision/image_embedder/python)
