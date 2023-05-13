@@ -17,6 +17,7 @@
 * [Object Detector models](https://developers.google.com/mediapipe/solutions/vision/object_detector#efficientdet-lite0_model_recommended)
 * [Object Detector Mediapipe](https://developers.google.com/mediapipe/solutions/vision/object_detector/python)
 * [Aruco Marker OpenCV](https://docs.opencv.org/4.x/d5/dae/tutorial_aruco_detection.html)
-
+* [midas depth colab](https://colab.research.google.com/drive/1QjcqchMme2gFqoaLsAcg0eNa7s-xfN8W#scrollTo=expanded-verification)
+* 
 ## How to add this repo to other repo
 * https://dev.to/jjokah/submodules-a-git-repo-inside-a-git-repo-36l9
