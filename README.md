@@ -3,7 +3,17 @@
 
 ##  Interactive files
 * `interactive_aruco.ipynb` contains the aruco marker code.
-* `interactive_DO.ipynb` contains the code for object detection and Embedding model.
+* `interactive_DO.ipynb` contains the code for object detection and embedding model with kalman filter tracking.
+
+## run the tracking script
+> python3 sort.py
+
+* Note: assuming the dataset and model are placed in the following directory format.
+    - model/
+        - embedding_model
+        - object detection model
+    - dataset/
+        - video_cars.mp4
 
 ## requirements
 > pip install -r requirements.txt
