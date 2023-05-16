@@ -36,6 +36,7 @@ class Model():
             max_results=50,
             score_threshold=0.4,
             running_mode=mp.tasks.vision.RunningMode.VIDEO
+            # running_mode=mp.tasks.vision.RunningMode.LIVE_STREAM
         )
 
     def initializeEmbeddingModel(self):
@@ -45,8 +46,12 @@ class Model():
         l2_normalize = True #@param {type:"boolean"}
         quantize = True #@param {type:"boolean"}
         self.emb_options = vision.ImageEmbedderOptions(
-            base_options=embedder_base_options, l2_normalize=l2_normalize, quantize=quantize,
-            running_mode= mp.tasks.vision.RunningMode.VIDEO)
+            base_options=embedder_base_options,
+            l2_normalize=l2_normalize, 
+            quantize=quantize,
+            running_mode= mp.tasks.vision.RunningMode.VIDEO
+            # running_mode=mp.tasks.vision.RunningMode.LIVE_STREAM
+            )
         
 class Track():
     def __init__(self, track_idx, bbox, features, frame_limit =10, input_st=7, output_st=4):
@@ -133,7 +138,7 @@ class Track():
         self.kf.predict()
         self.time_since_update += 1
         # history.append()
-        return self.convert_x_to_bbox(self.kf.x)
+        return self.kf.x #self.convert_x_to_bbox(self.kf.x)
         # return history[-1]
 
 class Sort:
@@ -159,7 +164,7 @@ class Sort:
 
         #setting parameters
         self.iou_thresh = 0.7
-        self.feature_matching_thresh = 0.7
+        self.feature_matching_thresh = 0.65
         self.car_idx = 0 #car counts detected cars in the video, same car will be not counted more than 1
         self.obj_track = {} # keep the object tracking data 
 
@@ -223,15 +228,14 @@ class Sort:
                         frame_timestamp_ms = int(1000 * frame_idx / self.fps)
                         # print(frame_timestamp_ms)
                         time_start = time.perf_counter()
+                        # if frame_idx%frame_interval==0:
                         # Convert the frame received from OpenCV to a MediaPipe’s Image object.
                         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img)
 
                         # Perform object detection on the video frame.
                         detection_results = detector.detect_for_video(mp_image, frame_timestamp_ms)
-                        # print("time taken : ",time.perf_counter()-time_start)
-                        # print("Detections:",len(detection_results.detections))
-                        # print("--------------")
-                        # crop_idx=0
+
+                        dets = []
                         for det_res in detection_results.detections:
                             x = det_res.bounding_box.origin_x
                             y = det_res.bounding_box.origin_y
@@ -239,6 +243,8 @@ class Sort:
                             height = det_res.bounding_box.height
                             
                             x1,y1,x2,y2 = (x,y,x+width,y+height)
+                            dets.append((x1,y1,x2,y2))
+
                             img_crop = img[y1:y2,x1:x2,:].astype(np.uint8)
                             crop_idx+=1
                             # Calculate the timestamp of the current frame
@@ -286,18 +292,22 @@ class Sort:
                                         best_iou = iou
                                         best_iou_idx = idx
 
-                                    if similarity>self.feature_matching_thresh and similarity>best_match:
+                                    if similarity>best_match:
+                                        # print(similarity)
                                         best_match = similarity
-                                        new_car_idx = c_idx
-                                        idx_remove = idx
+                                        if similarity>self.feature_matching_thresh:
+                                            
+                                            new_car_idx = c_idx
+                                            idx_remove = idx
                                 if new_car_idx is None:
                                     flag= True
+                                    print("Similarty : ",best_match)
                                     if best_iou_idx!=0:
                                         bbox_p = self.obj_track[best_iou_idx].predict().squeeze().tolist()
                                         iou = self.IOU(bbox_p,bbox)
-                                        print(iou)
+                                        # print(iou)
                                         if iou>0.95:
-                                            print("Got data but embeddings are not matching")
+                                            # print("Got data but embeddings are not matching")
                                             # obj_track[best_iou_idx].predict()
                                             self.obj_track[best_iou_idx].update(bbox=bbox,features=features)
                                             flag= False
@@ -311,7 +321,8 @@ class Sort:
                                     prev_embeddings.pop(idx_remove)
                                     x1,y1,x2,y2 = bbox
                                     pred_box = self.obj_track[new_car_idx].predict()
-                                    print("actual bbox : ",bbox," | pred bbox : ",pred_box)
+                                    yield pred_box
+                                    # print("actual bbox : ",bbox," | pred bbox : ",pred_box)
 
                                     self.obj_track[new_car_idx].update(bbox=bbox,features=features)
                                 # print(int(frame_idx//frame_interval),embedding_result)
@@ -366,5 +377,5 @@ class Sort:
 
 
 if __name__ == "__main__":
-    deep_sort = Sort()
+    deep_sort = Sort(video_filepath=0)
     deep_sort.run()
