@@ -10,8 +10,10 @@
 
 * Note: assuming the dataset and model are placed in the following directory format.
     - model/
-        - embedding_model
-        - object detection model
+        - embedder/
+            - embedding model
+        - object_detector/
+            - object_detection model
     - dataset/
         - video_cars.mp4
 
@@ -20,6 +22,12 @@
 
 ## dataset
 * [video_cars.mp4](https://drive.google.com/file/d/119pDDZhH64BOW-6NPdEfDu3s_8-OA_4A/view?usp=sharing)
+
+## models
+* [embedding_model](https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/latest/mobilenet_v3_small.tflite)
+
+* [object_detection_model](https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/latest/efficientdet_lite0.tflite)
+
 
 ## References
 * [Image Embedding models](https://developers.google.com/mediapipe/solutions/vision/image_embedder/index#models)
