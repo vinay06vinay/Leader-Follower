@@ -21,7 +21,9 @@ cv2.resizeWindow("Frame", 700, 400)
 
 
 class Model():
-    def __init__(self, detection_model_filepath = "model/object_detector/efficientdet_lite0_uint8.tflite", embedding_model_filepath="model/embedder/mobilenet_v3_small_075_224_embedder.tflite"):
+    def __init__(self, 
+                 detection_model_filepath = "model/object_detector/efficientdet_lite0_uint8.tflite", 
+                 embedding_model_filepath="model/embedder/mobilenet_v3_small_075_224_embedder.tflite"):
         self.objectDectector_model_filepath = detection_model_filepath
         # video_filepath = "dataset/video_cars.mp4"
         self.embedder_model_filepath = embedding_model_filepath 
