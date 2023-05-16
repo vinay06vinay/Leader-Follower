@@ -11,9 +11,9 @@
 * Note: assuming the dataset and model are placed in the following directory format.
     - model/
         - embedder/
-            - embedding model
+            - mobilenet_v3_small_075_224_embedder.tflite
         - object_detector/
-            - object_detection model
+            - efficientdet_lite0_uint8.tflite
     - dataset/
         - video_cars.mp4
 

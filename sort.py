@@ -380,4 +380,5 @@ class Sort:
 
 if __name__ == "__main__":
     deep_sort = Sort(video_filepath=0)
-    deep_sort.run()
+    for bbox in deep_sort.run():
+        print("bbox : ",bbox)
