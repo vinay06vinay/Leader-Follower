@@ -10,7 +10,7 @@ import os
 
 from filterpy.kalman import KalmanFilter
 from tqdm import tqdm
-
+import argparse
 
 
 # Naming a window
@@ -379,6 +379,14 @@ class Sort:
 
 
 if __name__ == "__main__":
-    deep_sort = Sort(video_filepath=0)
+    parser = argparse.ArgumentParser(
+                    prog='Detect and Sort tracking',
+                    description='Detect and Sort tracking')
+    
+    parser.add_argument("-d", "--detect_model", default="model/object_detector/efficientdet_lite0_uint8.tflite")
+    parser.add_argument("-e", "--embed_model", default="model/embedder/mobilenet_v3_small_075_224_embedder.tflite")
+    args = parser.parse_args()
+
+    deep_sort = Sort(video_filepath=0,detection_model_filepath=args.detect_model, embedding_model_filepath=args.embed_model)
     for bbox in deep_sort.run():
         print("bbox : ",bbox)
