@@ -13,7 +13,7 @@
         `python3 sort_v2.py -h` 
 
 ## run the tracking script
-> python3 sort_v2.py
+> python3 sort_v2.py --d model/object_detector/efficientdet_lite0_fp16.tflite --e model/embedder/mobilenet_v3_large.tflite --save --vis --save_output_video tracking_output.avi --frame_limit 60
 
 * Note: assuming the dataset and model are placed in the following directory format.
     - model/
