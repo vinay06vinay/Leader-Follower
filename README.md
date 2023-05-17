@@ -5,13 +5,20 @@
 * `interactive_aruco.ipynb` contains the aruco marker code.
 * `interactive_DO.ipynb` contains the code for object detection and embedding model with kalman filter tracking.
 
+## python files
+* `sort.py` contains tracking algorithm, using embedding between 2 frames and the if the frames embedding match the track id moves to the frame, else new track id is assigned.
+
+* `sort_v2.py` updated version of the `sort.py` where the tracking is independent of 2 consecutive frames, so more robust and can track the object even after occlusion.
+    - Get the argument details:
+        `python3 sort_v2.py -h` 
+
 ## run the tracking script
-> python3 sort.py
+> python3 sort_v2.py
 
 * Note: assuming the dataset and model are placed in the following directory format.
     - model/
         - embedder/
-            - mobilenet_v3_small_075_224_embedder.tflite
+            - mobilenet_v3_large.tflite
         - object_detector/
             - efficientdet_lite0_uint8.tflite
     - dataset/
@@ -24,7 +31,10 @@
 * [video_cars.mp4](https://drive.google.com/file/d/119pDDZhH64BOW-6NPdEfDu3s_8-OA_4A/view?usp=sharing)
 
 ## models
-* [embedding_model](https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/latest/mobilenet_v3_small.tflite)
+* embedding model, choose according to requirement:
+    - [embedding_model](https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/latest/mobilenet_v3_small.tflite)
+
+    - [embedding_model_large](https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_large/float32/latest/mobilenet_v3_large.tflite)
 
 * [object_detection_model](https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/latest/efficientdet_lite0.tflite)
 

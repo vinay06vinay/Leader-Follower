@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 
 import cv2
 import numpy as np
@@ -8,6 +10,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import os
 
+from copy import copy
 from filterpy.kalman import KalmanFilter
 from tqdm import tqdm
 import argparse
@@ -23,7 +26,7 @@ cv2.resizeWindow("Frame", 700, 400)
 class Model():
     def __init__(self, 
                  detection_model_filepath = "model/object_detector/efficientdet_lite0_uint8.tflite", 
-                 embedding_model_filepath="model/embedder/mobilenet_v3_small_075_224_embedder.tflite"):
+                 embedding_model_filepath="model/embedder/mobilenet_v3_large.tflite"):
         self.objectDectector_model_filepath = detection_model_filepath
         # video_filepath = "dataset/video_cars.mp4"
         self.embedder_model_filepath = embedding_model_filepath 
@@ -46,7 +49,7 @@ class Model():
         # Create options for Image Embedder
         embedder_base_options = mp.tasks.BaseOptions(model_asset_path=self.embedder_model_filepath)
         l2_normalize = True #@param {type:"boolean"}
-        quantize = True #@param {type:"boolean"}
+        quantize = False #@param {type:"boolean"}
         self.emb_options = vision.ImageEmbedderOptions(
             base_options=embedder_base_options,
             l2_normalize=l2_normalize, 
@@ -56,7 +59,7 @@ class Model():
             )
         
 class Track():
-    def __init__(self, track_idx, bbox, features, frame_limit =10, input_st=7, output_st=4):
+    def __init__(self, track_idx, bbox, features, frame_limit =30, input_st=7, output_st=4):
         # input_st = 7
         # output_st = 4
         
@@ -111,7 +114,7 @@ class Track():
     def convert_x_to_bbox(self,x):
         w = np.sqrt(x[2] * x[3])
         h = x[2] / w
-        return np.array([x[0]-w/2.,x[1]-h/2.,x[0]+w/2.,x[1]+h/2.]).reshape((1,4))
+        return np.array([x[0]-w/2.,x[1]-h/2.,x[0]+w/2.,x[1]+h/2.],dtype=np.uint8).reshape((4,)).tolist()
     
     def update(self,bbox, features):
         """
@@ -123,6 +126,7 @@ class Track():
         # update features
         prev_feature = self.features.embedding
         new_feature = features.embedding
+        # print(prev_feature.dtype)
         self.features.embedding = (prev_feature+new_feature)/2
 
         self.kf.update(self.convert_bbox_to_z(bbox))
@@ -143,10 +147,15 @@ class Track():
         return self.kf.x #self.convert_x_to_bbox(self.kf.x)
         # return history[-1]
 
+    def get_bbox(self):
+        return self.convert_x_to_bbox(self.kf.x)
+
 class Sort:
     def __init__(self, video_filepath = "dataset/video_cars.mp4",
                  detection_model_filepath = "model/object_detector/efficientdet_lite0_uint8.tflite",
-                 embedding_model_filepath="model/embedder/mobilenet_v3_small_075_224_embedder.tflite",
+                 embedding_model_filepath="model/embedder/mobilenet_v3_large.tflite",
+                 frame_limit = 60,
+                 output_video='objEmbed_video_cars_track.avi',
                  visualize=True,
                  save_output=True):
         self.cap = cv2.VideoCapture(video_filepath)
@@ -165,9 +174,10 @@ class Sort:
         self.models = Model(detection_model_filepath=detection_model_filepath,embedding_model_filepath=embedding_model_filepath)
 
         #setting parameters
+        self.frame_limit = frame_limit # after this frames the track id will be remove from the memory
         self.iou_thresh = 0.7
         self.feature_matching_thresh = 0.65
-        self.car_idx = 0 #car counts detected cars in the video, same car will be not counted more than 1
+        self.track_idx = 0 #car counts detected cars in the video, same car will be not counted more than 1
         self.obj_track = {} # keep the object tracking data 
 
         self.visualize = visualize
@@ -177,7 +187,7 @@ class Sort:
             # Below VideoWriter object will create
             # a frame of above defined The output 
             # # is stored in 'filename.avi' file.
-            self.videoWriter = cv2.VideoWriter('objEmbed_video_cars_track.avi', 
+            self.videoWriter = cv2.VideoWriter(output_video, 
                                     cv2.VideoWriter_fourcc(*'MJPG'),
                                     10, size)
             self.output_image_dir = "images"
@@ -204,6 +214,20 @@ class Sort:
         iou = interArea / float(bbox1Area + bbox2Area - interArea)
         # return the intersection over union value
         return iou
+    def plot(self,c_idx, bboxes, img):
+        x1 = bboxes[0]
+        y1 = bboxes[1]
+        x2 = bboxes[2]
+        y2 = bboxes[3]
+        img = cv2.rectangle(img, (x1,y1-100),(x1+100,y1),color=(255,0,0),thickness=-1)
+        img = cv2.putText(img, f'{c_idx}', org=(x1,y1),
+                            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                            fontScale=3,
+                            color=(255,255,255),
+                            thickness=4,
+                            lineType=cv2.LINE_AA)
+        img = cv2.rectangle(img, (x1,y1),(x2,y2),color=(0,255,0),thickness=5)
+        return img
     
     def run(self):
         frame_idx = 0
@@ -213,9 +237,6 @@ class Sort:
 
         all_detections=defaultdict(list)
         avg_processing_time = 0
-        prev_embeddings = [] # prev frame as 1, next frame as 2
-        next_embeddings = []
-
         frame_interval = 1
 
         with vision.ImageEmbedder.create_from_options(self.models.emb_options) as embedder:
@@ -237,7 +258,7 @@ class Sort:
                         # Perform object detection on the video frame.
                         detection_results = detector.detect_for_video(mp_image, frame_timestamp_ms)
 
-                        dets = []
+                        obj_track = copy(self.obj_track)
                         for det_res in detection_results.detections:
                             x = det_res.bounding_box.origin_x
                             y = det_res.bounding_box.origin_y
@@ -245,7 +266,8 @@ class Sort:
                             height = det_res.bounding_box.height
                             
                             x1,y1,x2,y2 = (x,y,x+width,y+height)
-                            dets.append((x1,y1,x2,y2))
+                            # det_bboxes = (x1,y1,x2,y2)
+                            # dets.append((x1,y1,x2,y2))
 
                             img_crop = img[y1:y2,x1:x2,:].astype(np.uint8)
                             crop_idx+=1
@@ -259,101 +281,75 @@ class Sort:
 
                             # embed_arr.append(embedding_result.embeddings[0])
                             features = embedding_result.embeddings[0]
-                            bbox = [x1,y1,x2,y2]
-                            all_detections[frame_idx].append((bbox, features))
+                            det_bbox = [x1,y1,x2,y2]
+                            all_detections[frame_idx].append((det_bbox, features))
                             # img = cv2.rectangle(img, (x,y),(x+width,y+height),color=(0,255,0),thickness=2)
                         
-                            if len(prev_embeddings)==0:
+                            if len(obj_track.keys())==0:
 
-                                self.car_idx+=1
+                                self.track_idx+=1
 
-                                # embed_arr.append(embedding_result.embeddings[0])
-                                # car_idx_arr.append(car_idx)
-                                self.obj_track[self.car_idx] = self.obj_track.get(self.car_idx, Track(self.car_idx,bbox=bbox, features=features))
+                                self.obj_track[self.track_idx] = self.obj_track.get(self.track_idx, Track(self.track_idx,bbox=det_bbox, features=features, frame_limit=self.frame_limit))
+                                if self.visualize or self.save_output:
+                                    img = self.plot(self.track_idx, det_bbox, img)
 
-                                # print(int(frame_idx//frame_interval),embedding_result)
-                                prev_embeddings.append((features,self.car_idx,bbox))
-                            # print(obj_track)
-                                # break
                             else:
 
                                 em1 = features
                                 best_match = 0
-                                new_car_idx = None
-                                idx_remove = None
-                                best_iou = 0
-                                best_iou_idx = 0
-                                
-
-                                for idx, (embed_prev, c_idx, coords) in enumerate(prev_embeddings):
-                                    em2 = embed_prev
+                                new_track_idx = None
+                                # idx_remove = None
+                                # best_iou = 0
+                                # best_iou_idx = 0
+                                # c_idx = 1
+                                for c_idx, track in obj_track.items():
+                                    # track = obj_track[c_idx]
+                                    coords = track.get_bbox()
+                                    em2 = track.features
                                     similarity = vision.ImageEmbedder.cosine_similarity(
                                         em1,
                                         em2)
                                     
-                                    iou = self.IOU(bbox, coords)
-                                    if iou>self.iou_thresh and iou>best_iou:
-                                        best_iou = iou
-                                        best_iou_idx = idx
+                                    # iou = self.IOU(det_bbox, coords)
 
                                     if similarity>best_match:
                                         # print(similarity)
                                         best_match = similarity
                                         if similarity>self.feature_matching_thresh:
                                             
-                                            new_car_idx = c_idx
-                                            idx_remove = idx
-                                if new_car_idx is None:
+                                            new_track_idx = c_idx
+                                            # idx_remove = idx
+                                if new_track_idx is None:
                                     flag= True
-                                    print("Similarty : ",best_match)
-                                    if best_iou_idx!=0:
-                                        bbox_p = self.obj_track[best_iou_idx].predict().squeeze().tolist()
-                                        iou = self.IOU(bbox_p,bbox)
-                                        # print(iou)
-                                        if iou>0.95:
-                                            # print("Got data but embeddings are not matching")
-                                            # obj_track[best_iou_idx].predict()
-                                            self.obj_track[best_iou_idx].update(bbox=bbox,features=features)
-                                            flag= False
-                                            new_car_idx = best_iou_idx
+
                                             
                                     if flag:
-                                        self.car_idx+=1
-                                        new_car_idx = self.car_idx
-                                        self.obj_track[self.car_idx] = self.obj_track.get(self.car_idx, Track(self.car_idx, bbox=bbox, features=features))
+                                        self.track_idx+=1
+                                        new_track_idx = self.track_idx
+                                        self.obj_track[self.track_idx] = self.obj_track.get(self.track_idx, Track(self.track_idx, bbox=det_bbox, features=features,frame_limit=self.frame_limit))
+                                        pred_data = self.obj_track[new_track_idx].predict()
+                                        yield (False,self.track_idx,pred_data)
                                 else:
-                                    prev_embeddings.pop(idx_remove)
-                                    x1,y1,x2,y2 = bbox
-                                    pred_box = self.obj_track[new_car_idx].predict()
-                                    yield pred_box
-                                    # print("actual bbox : ",bbox," | pred bbox : ",pred_box)
+                                    x1,y1,x2,y2 = det_bbox
+                                    pred_data = self.obj_track[new_track_idx].predict()
+                                    # pred_bbox = self.obj_track[new_track_idx].get_bbox()
+                                    self.obj_track[new_track_idx].update(bbox=det_bbox,features=features)
+                                    del obj_track[new_track_idx]
+                                    if self.visualize or self.save_output:
+                                        img = self.plot(new_track_idx,det_bbox, img)
+                                    yield (True, new_track_idx,pred_data)
 
-                                    self.obj_track[new_car_idx].update(bbox=bbox,features=features)
-                                # print(int(frame_idx//frame_interval),embedding_result)
-                                next_embeddings.append((features,new_car_idx,bbox))
-                        # reduce the count of predict for the cars not found
-                        for _,c_id,_ in prev_embeddings:
+                                
+                        
+                        # remove the tracking id if the limit is crossed
+                        c_idxes = list(obj_track.keys())
+                        while len(c_idxes)>0:
+                            c_id = c_idxes.pop(0)
                             ret = self.obj_track[c_id].notFound()
                             if ret:
-                                # object not found for certain frames deleting the object
+                                # cross the limit
                                 del self.obj_track[c_id]
-                        prev_embeddings = next_embeddings.copy()
-                        next_embeddings = []
-                        # print(prev_embeddings)
-                        if self.visualize or self.save_output:
-                            for embed_prev, c_idx, coords in prev_embeddings:
-                                x1 = coords[0]
-                                y1 = coords[1]
-                                x2 = coords[2]
-                                y2 = coords[3]
-                                img = cv2.rectangle(img, (x1,y1-100),(x1+100,y1),color=(255,0,0),thickness=-1)
-                                img = cv2.putText(img, f'{c_idx}', org=(x1,y1),
-                                                    fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                                                    fontScale=3,
-                                                    color=(255,255,255),
-                                                    thickness=4,
-                                                    lineType=cv2.LINE_AA)
-                                img = cv2.rectangle(img, (x1,y1),(x2,y2),color=(0,255,0),thickness=5)
+
                         if self.save_output:
                             cv2.imwrite(os.path.join(self.output_image_dir,f"image_{frame_idx}.png"),img)
                             self.videoWriter.write(img)
@@ -385,10 +381,21 @@ if __name__ == "__main__":
                     prog='Detect and Sort tracking',
                     description='Detect and Sort tracking')
     
-    parser.add_argument("-d", "--detect_model", default="model/object_detector/efficientdet_lite0_uint8.tflite")
-    parser.add_argument("-e", "--embed_model", default="model/embedder/mobilenet_v3_small_075_224_embedder.tflite")
+    parser.add_argument("-d", "--detect_model",type=str, default="model/object_detector/efficientdet_lite0_uint8.tflite")
+    parser.add_argument("-e", "--embed_model",type=str, default="model/embedder/mobilenet_v3_small_075_224_embedder.tflite")
+    parser.add_argument("--save_output_video","--sv",type=str,default='objEmbed_video_cars_track.avi')
+    parser.add_argument("--frame_limit","--f", type=int, default=60, help="After this many consecutive frames the track id will be remove from the memory")
+    parser.add_argument("--save",action = 'store_true',help = "save the video and images")
+    parser.add_argument("--vis",action='store_true',help="visualise the tracking output for debug")
     args = parser.parse_args()
 
-    deep_sort = Sort(video_filepath=0,detection_model_filepath=args.detect_model, embedding_model_filepath=args.embed_model)
+    deep_sort = Sort(
+        video_filepath=0,
+        detection_model_filepath=args.detect_model,
+        embedding_model_filepath=args.embed_model,
+        frame_limit=args.frame_limit,
+        output_video=args.save_output_video,
+        visualize=args.vis,
+        save_output=args.save)
     for bbox in deep_sort.run():
         print("bbox : ",bbox)
