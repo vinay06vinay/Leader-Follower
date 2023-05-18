@@ -155,21 +155,11 @@ class Sort:
                  detection_model_filepath = "model/object_detector/efficientdet_lite0_uint8.tflite",
                  embedding_model_filepath="model/embedder/mobilenet_v3_large.tflite",
                  frame_limit = 60,
+                 size=(640,480),
                  output_video='objEmbed_video_cars_track.avi',
                  visualize=True,
                  save_output=True):
-        self.cap = cv2.VideoCapture(video_filepath)
-        self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
-        print("FPS: ",self.fps)
-
-        # setting up video writer for testing the object detector
-        # We need to set resolutions.
-        # so, convert them from float to integer.
-        frame_width = int(self.cap.get(3))
-        frame_height = int(self.cap.get(4))
-        
-        size = (frame_width, frame_height)
-        
+       
         ## initialize the models
         self.models = Model(detection_model_filepath=detection_model_filepath,embedding_model_filepath=embedding_model_filepath)
         self.embedder = vision.ImageEmbedder.create_from_options(self.models.emb_options)
@@ -187,19 +177,27 @@ class Sort:
 
         self.visualize = visualize
         self.save_output = save_output
+        self.output_video = output_video
 
-        if save_output:
+        self.video_filepath = video_filepath
+
+        if self.save_output:
             # Below VideoWriter object will create
             # a frame of above defined The output 
             # # is stored in 'filename.avi' file.
-            self.videoWriter = cv2.VideoWriter(output_video, 
+            self.videoWriter = cv2.VideoWriter(self.output_video, 
                                     cv2.VideoWriter_fourcc(*'MJPG'),
                                     10, size)
             self.output_image_dir = "images"
             os.makedirs(self.output_image_dir,exist_ok=True)
         
-        
+    def init(self):
+        self.cap = cv2.VideoCapture(self.video_filepath)
+        self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
+        print("FPS: ",self.fps)
 
+
+        
     def IOU(self,bbox1,bbox2):
         
         # determine the (x, y)-coordinates of the intersection rectangle
@@ -549,4 +547,5 @@ if __name__ == "__main__":
         save_output=args.save)
     # for bbox in deep_sort.run():
     #     print("bbox : ",bbox)
+    deep_sort.init()
     deep_sort.video_run()
