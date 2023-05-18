@@ -163,7 +163,6 @@ class Sort:
         ## initialize the models
         self.models = Model(detection_model_filepath=detection_model_filepath,embedding_model_filepath=embedding_model_filepath)
         self.embedder = vision.ImageEmbedder.create_from_options(self.models.emb_options)
-        self.detector = mp.tasks.vision.ObjectDetector.create_from_options(self.models.ObjecttDetectorOptions)
         
         #setting parameters
         self.frame_limit = frame_limit # after this frames the track id will be remove from the memory
@@ -194,6 +193,7 @@ class Sort:
     def init(self):
         self.cap = cv2.VideoCapture(self.video_filepath)
         self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
+        self.detector = mp.tasks.vision.ObjectDetector.create_from_options(self.models.ObjecttDetectorOptions)
         print("FPS: ",self.fps)
 
 
