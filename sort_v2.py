@@ -170,10 +170,10 @@ class Sort:
         self.feature_matching_thresh = 0.65
         self.track_idx = 0 #car counts detected cars in the video, same car will be not counted more than 1
         self.obj_track = {} # keep the object tracking data 
-
+        
         ## for track function 
         self.frame_idx = 0
-
+        self.fps = 30
         self.visualize = visualize
         self.save_output = save_output
         self.output_video = output_video
