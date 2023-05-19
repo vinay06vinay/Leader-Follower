@@ -27,6 +27,8 @@
 
 - Create a folder named weights and place the downloaded weights in the folder.
 
+---
+
 ## Execution
 
 * **Leader-Follower** 
@@ -36,4 +38,22 @@
         ```
         python3 main.py
         ```
+---
 
+## Details
+* `sort.py` is referred from `sort_v2.py` in tracking branch.
+
+### Instructions To Run The Follower Code
+1. Once the main server is started, follower.py code is run.
+2. To Run "follower.py" code in Rasberry Pi, first you need to ssh into Rasberry pi of the follower robot using "ssh username@password". 
+3. Transfer the script file to the Rasberry Pi and install all necessary libraries such as opencv, flask, socket, imutils, numpy, gpio.
+4. Open a terminal and run the "follower.py" file while the main server of socket is running.
+
+### Instructions To Run The Leader Code
+1. Once the main server is started, leader.py code is run.
+2. To Run "leader.py" code in Rasberry Pi, first you need to ssh into Rasberry pi of the Leader robot using "ssh username@password". 
+3. Transfer the script file to the Rasberry Pi and install all necessary libraries such as opencv, flask, socket, imutils, numpy, gpio.
+4. Open a terminal and run the "leader.py" file while the main server of socket is running.
+
+### Videos
+* Results: The follower will be following the leader with a threshold distance as long as it tracks the leader. If a Dynamic Obstacle comes into the play the follower pauses the motion and communicates with the leader and other followers to stop. Once the obstacle goes out of the frame and follower is tracking the leader the whole platoon system starts moving again. [Link](https://drive.google.com/drive/u/1/folders/1lEYSDns3Q3QMbOsjFyqpdVxPJQgv3-mY?authuser=0)
