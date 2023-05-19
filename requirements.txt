@@ -1,6 +1,0 @@
-numpy
-opencv-python
-mediapipe
-matplotlib
-tqdm
-filterpy
