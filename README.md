@@ -7,6 +7,9 @@
 * Sameer Arjun S (UID - 119385876)
 * Vinay Bukka (UID - 18176680)
 
+## Citation and Paper 
+If you find Leader Follower useful in your academic work, please cite the [paper](https://arxiv.org/pdf/2405.11659).
+
 ## Setup
 
 - Create a python virtual environment to install the dependencies for the project. 
